@@ -6,7 +6,7 @@ from keras.preprocessing import image
 import numpy as np
 import click
 import json
-
+import os
 
 def images_to_sprite(data):
     """
@@ -69,7 +69,9 @@ def main(data, name, sprite_size, tensor_name, sprite_name, model_input_size):
     
     if not data.endswith('/'):
         raise ValueError('Makesure --name ends with a "/"')
-    
+
+    data_path = os.getenv('TSNE_EMB_VIS_DATA_DIR', './oss_data/')
+
     images_paths = glob.glob(data + "*.jpg")
     images_paths.extend(glob.glob(data + "*.JPG"))
     images_paths.extend(glob.glob(data + "*.png"))
@@ -78,23 +80,23 @@ def main(data, name, sprite_size, tensor_name, sprite_name, model_input_size):
 
     img_arr = populate_img_arr(images_paths, size=(model_input_size, model_input_size), should_preprocess=True)
     preds = model.predict(img_arr, batch_size=64)
-    preds.tofile("./oss_data/" + tensor_name)
+    preds.tofile(data_path + tensor_name)
 
     raw_imgs = populate_img_arr(images_paths, size=(sprite_size, sprite_size), should_preprocess=False)
     sprite = Image.fromarray(images_to_sprite(raw_imgs).astype(np.uint8))
-    sprite.save('./oss_data/' + sprite_name)
+    sprite.save(data_path + sprite_name)
 
-    oss_json = json.load(open('./oss_data/oss_demo_projector_config.json'))
+    oss_json = json.load(open(data_path + 'oss_demo_projector_config.json'))
     tensor_shape = [raw_imgs.shape[0], model.output_shape[1]]
     single_image_dim = [raw_imgs.shape[1], raw_imgs.shape[2]]
 
     json_to_append = {"tensorName": name,
                       "tensorShape": tensor_shape,
-                      "tensorPath": "./oss_data/" + tensor_name,
-                      "sprite": {"imagePath": "./oss_data/" + sprite_name,
+                      "tensorPath": data_path + tensor_name,
+                      "sprite": {"imagePath": data_path + sprite_name,
                                  "singleImageDim": single_image_dim}}
     oss_json['embeddings'].append(json_to_append)
-    with open('oss_data/oss_demo_projector_config.json', 'w+') as f:
+    with open(data_path + 'oss_demo_projector_config.json', 'w+') as f:
         json.dump(oss_json, f, ensure_ascii=False, indent=4)
 
 
